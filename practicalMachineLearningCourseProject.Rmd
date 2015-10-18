@@ -8,7 +8,7 @@ output: html_document
 Data was collected from accelerometers on the belt, forearm, arm, and dumbell of 
 six participants. They were asked to perform one set of ten repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
 
-The data was available to download from Groupware website.
+The data is available to download from Groupware website.
 
 The data was split in a training-validation and a testing set. The training-validation set was further split in a training set and a validation set. 70% of the training-validation set was used for training and 30% for cross-validation.
 ```{r, warning=FALSE,message=FALSE}
@@ -16,6 +16,7 @@ library(caret)
 library(dplyr)
 library(rpart)
 library(rattle)
+library(randomForest)
 
 if(!file.exists("data")){
         dir.create("data")
@@ -66,16 +67,18 @@ validationXNaNzv <- validationXNa[,-nzv]
 
 ```
 Orinally the data set consisted of `r length(training) -1` covariates. The three 
-methods to remove covariates reduce the number of covariates used for the model to `r  length(trainingXNaNzv) -1`.
+methods to remove covariates reduced the number of covariates used for the model to `r  length(trainingXNaNzv) -1`.
 
-Prediciting with trees generates poor accuracy. A more advanced model was therefore required. A random forest model was selected. 
+Prediciting with trees generated poor accuracy. A more advanced model was therefore required. A random forest model was selected. 
 
 ```{r}
-modelFitXNaNzvRf <- train(classe ~ ., method = "rf", data = trainingXNaNzv)
-```
-The validation set is used to cross-validate the model. 
+#modelFitXNaNzvRf <- train(classe ~ ., method = "rf", data = trainingXNaNzv)
+modelFitXNaNzvRf <- randomForest(classe ~ ., data = trainingXNaNzv, importance = TRUE) 
 
-```{r, cache=TRUE}
+```
+The validation set was used to cross-validate the model. 
+
+```{r}
 predictionXNaNzvRf <- predict(modelFitXNaNzvRf, newdata = validationXNaNzv)
 ```
 
@@ -83,4 +86,4 @@ predictionXNaNzvRf <- predict(modelFitXNaNzvRf, newdata = validationXNaNzv)
 confusionMatrixXNaNzvRf <- confusionMatrix(predictionXNaNzvRf, validation$classe)
 confusionMatrixXNaNzvRf
 ```
-The cross-validation shows the random forest model gives an overall accuracy of `r confusionMatrixXNaNzvRf$overall[[1]]`%. 
+The cross-validation showed the random forest model gives an overall accuracy of `r confusionMatrixXNaNzvRf$overall[[1]]`%. 

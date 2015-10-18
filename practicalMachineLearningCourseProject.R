@@ -59,7 +59,8 @@ validationNzvXNaAdd <- validationNzvXNa %>% select(-c(raw_timestamp_part_1,
 
 modelFitXNa <- train(classe ~ ., method = "rpart", data = trainingXNa)
 modelFitNzvXNa <- train(classe ~ ., method = "rpart", data = trainingNzvXNa)
-modelFitNzvXNaAddRf <- train(classe ~ ., method = "rf", data = trainingNzvXNaAdd)
+#modelFitNzvXNaAddRf <- train(classe ~ ., method = "rf", data = trainingNzvXNaAdd)
+modelFitNzvXNaAddRf <- randomForest(classe ~ ., data = trainingNzvXNaAdd, importance = TRUE) 
 modelFitNzvX <- train(classe ~ ., method = "rpart", data = trainingNzvX)
 #modelFitX <- train(classe ~ ., method = "rpart", data = trainingX)
 #modelFitNzvPc <- train(trainingNzv$classe ~ ., method = "rpart", data = trainingNzvPc)
@@ -75,7 +76,8 @@ fancyRpartPlot(modelFitNzvX$finalModel)
 
 predictionXNa <- predict(modelFitXNa, newdata = validationXNa)
 predictionNzvXNa <- predict(modelFitNzvXNa, newdata = validationNzvXNa)
-#predictionNzvXNaRf <- predict(modelFitNzvXNaRf, newdata = validationNzvXNa)
+predictionNzvXNaRf <- predict(modelFitNzvXNaRf, newdata = validationNzvXNa)
+predictionNzvXNaAddRf <- predict(modelFitNzvXNaAddRf, newdata = validationNzvXNaAdd)
 predictionNzvX <- predict(modelFitNzvX, newdata = validationNzvX)
 
 table(predictionXNa, validation$classe)
@@ -83,7 +85,8 @@ table(predictionXNa, validation$classe)
 confusionMatrix(predictionXNa, validation$classe)
 confusionMatrix(predictionNzvXNa, validation$classe)
 confusionMatrix(predictionNzvXNaRf, validation$classe)
-confusionMatrixNzvXNaAddRf <- confusionMatrix(predictionNzvXNaAddRf, validation$classe)
+confusionMatrixNzvXNaAddRf <- confusionMatrix(predictionNzvXNaAddRf, 
+                                              validation$classe)
 
 
 
