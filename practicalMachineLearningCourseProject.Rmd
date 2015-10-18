@@ -1,22 +1,86 @@
 ---
 title: "Practical Machine Learning Course Project"
 author: "Jonas Wiorek"
-date: "15 Oct 2015"
+date: "18 Oct 2015"
 output: html_document
 ---
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Data was collected from accelerometers on the belt, forearm, arm, and dumbell of 
+six participants. They were asked to perform one set of ten repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+The data was available to download from Groupware website.
+
+The data was split in a training-validation and a testing set. The training-validation set was further split in a training set and a validation set. 70% of the training-validation set was used for training and 30% for cross-validation.
+```{r, warning=FALSE,message=FALSE}
+library(caret)
+library(dplyr)
+library(rpart)
+library(rattle)
+
+if(!file.exists("data")){
+        dir.create("data")
+}
+
+fileUrlTraining <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+#download.file(fileUrlTraining, destfile="./data/pml-training.csv", method="curl") #OSx
+download.file(fileUrlTraining, destfile="./data/pml-training.csv") #Windows
+trainingValidation <- read.csv("./data/pml-training.csv")
+set.seed(1717)
+inTrain <- createDataPartition(y = trainingValidation$classe, p = 0.7, list = FALSE)
+training <- trainingValidation[inTrain,]
+validation <- trainingValidation[-inTrain,]
+
+# fileUrlTesting <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+# #download.file(fileUrlTesting, destfile="./data/pml-testing.csv", method="curl") #OSx
+# download.file(fileUrlTesting, destfile="./data/pml-testing.csv") #Windows
+# testing <- read.csv("./data/pml-testing.csv")
+```
+
+Exploration of the data showed that some of the input variables should not be part of the covariates for the model. 
+
+One group of input parameters are used for numbering the actual sample and could negatively affect the model accuracy. Other parameters logs the time when the exercise was performed. Both these groups of vairates were removed.
+
+Secondly, a group of input parameters has a large portion of missing data. If the percentage of NA exceeds 90% for a covariate it was excluded.
+
+Furter, another group of covariates has a varance close to zero. These were also excluded.
 
 ```{r}
-summary(cars)
+trainingX <- training %>% select(-c(X, 
+                                    raw_timestamp_part_1, 
+                                    raw_timestamp_part_2,
+                                    cvtd_timestamp,
+                                    num_window))
+validationX <- validation %>% select(-c(X,
+                                        raw_timestamp_part_1, 
+                                        raw_timestamp_part_2,
+                                        cvtd_timestamp,
+                                        num_window)) 
+
+nasX <- as.vector(which(apply(trainingX, 2, function(x) sum(is.na(x))/length(x)>.9)))
+trainingXNa <- trainingX[,-nasX]
+validationXNa <- validationX[,-nasX]
+
+nzv <- nearZeroVar(trainingXNa)
+trainingXNaNzv <- trainingXNa[,-nzv]
+validationXNaNzv <- validationXNa[,-nzv]
+
+```
+Orinally the data set consisted of `r length(training) -1` covariates. The three 
+methods to remove covariates reduce the number of covariates used for the model to `r  length(trainingXNaNzv) -1`.
+
+Prediciting with trees generates poor accuracy. A more advanced model was therefore required. A random forest model was selected. 
+
+```{r}
+modelFitXNaNzvRf <- train(classe ~ ., method = "rf", data = trainingXNaNzv)
+```
+The validation set is used to cross-validate the model. 
+
+```{r, cache=TRUE}
+predictionXNaNzvRf <- predict(modelFitXNaNzvRf, newdata = validationXNaNzv)
 ```
 
-You can also embed plots, for example:
-
-```{r, echo=FALSE}
-plot(cars)
+```{r}
+confusionMatrixXNaNzvRf <- confusionMatrix(predictionXNaNzvRf, validation$classe)
+confusionMatrixXNaNzvRf
 ```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+The cross-validation shows the random forest model gives an overall accuracy of `r confusionMatrixXNaNzvRf$overall[[1]]`%. 
