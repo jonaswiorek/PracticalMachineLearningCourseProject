@@ -1,7 +1,7 @@
 ---
 title: "Practical Machine Learning Course Project"
 author: "Jonas Wiorek"
-date: "18 Oct 2015"
+date: "25 Oct 2015"
 output: html_document
 ---
 
@@ -10,7 +10,7 @@ six participants. They were asked to perform one set of ten repetitions of the U
 
 The data is available to download from Groupware website.
 
-The data was split in a training-validation and a testing set. The training-validation set was further split in a training set and a validation set. 70% of the training-validation set was used for training and 30% for cross-validation.
+The data was split in a training-validation and a testing set. The training-validation set was further split in a training set and a validation set. 70% of the training-validation set was used for training and 30% for cross validation.
 ```{r, warning=FALSE,message=FALSE}
 library(caret)
 library(dplyr)
@@ -24,26 +24,26 @@ if(!file.exists("data")){
 
 fileUrlTraining <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
 #download.file(fileUrlTraining, destfile="./data/pml-training.csv", method="curl") #OSx
-download.file(fileUrlTraining, destfile="./data/pml-training.csv") #Windows
+#download.file(fileUrlTraining, destfile="./data/pml-training.csv") #Windows
 trainingValidation <- read.csv("./data/pml-training.csv")
 set.seed(1717)
 inTrain <- createDataPartition(y = trainingValidation$classe, p = 0.7, list = FALSE)
 training <- trainingValidation[inTrain,]
 validation <- trainingValidation[-inTrain,]
 
-# fileUrlTesting <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
-# #download.file(fileUrlTesting, destfile="./data/pml-testing.csv", method="curl") #OSx
-# download.file(fileUrlTesting, destfile="./data/pml-testing.csv") #Windows
-# testing <- read.csv("./data/pml-testing.csv")
+fileUrlTesting <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+#download.file(fileUrlTesting, destfile="./data/pml-testing.csv", method="curl") #OSx
+#download.file(fileUrlTesting, destfile="./data/pml-testing.csv") #Windows
+testing <- read.csv("./data/pml-testing.csv")
 ```
 
 Exploration of the data showed that some of the input variables should not be part of the covariates for the model. 
 
-One group of input parameters are used for numbering the actual sample and could negatively affect the model accuracy. Other parameters logs the time when the exercise was performed. Both these groups of vairates were removed.
+One group of input parameters are used for numbering the actual sample and could negatively affect the model accuracy and lead to overfitting. Other parameters logs the time when the exercise was performed. Both these groups of covariates were removed.
 
 Secondly, a group of input parameters has a large portion of missing data. If the percentage of NA exceeds 90% for a covariate it was excluded.
 
-Furter, another group of covariates has a varance close to zero. These were also excluded.
+Further, another group of covariates has a variance close to zero. These covariates were also excluded.
 
 ```{r}
 trainingX <- training %>% select(-c(X, 
@@ -74,9 +74,13 @@ Prediciting with trees generated poor accuracy. A more advanced model was theref
 ```{r}
 #modelFitXNaNzvRf <- train(classe ~ ., method = "rf", data = trainingXNaNzv)
 modelFitXNaNzvRf <- randomForest(classe ~ ., data = trainingXNaNzv, importance = TRUE) 
-
+print(modelFitXNaNzvRf)
 ```
-The validation set was used to cross-validate the model. 
+`r modelFitXNaNzvRf$ntree` trees and `r modelFitXNaNzvRf$mtry` variables were randomly sampled as candidates at each split. The default values are used in both cases. The default number of variables is the floor of the square root of the total number of covariates (`r  length(trainingXNaNzv) -1` in this case). 
+
+The randomForest function provides a out-of-bag, OOB, error estimation. Not all samples are used to build a certain tree. The samples not used for a tree are used to estimate the error rate. It is the OOB error estimation. It is an estimation of the out-of-sample error rate. The OOB estimate error rate in this case was 0.5%.
+
+The validation set was used to cross-validate the model in addition to the OOB error rate. 
 
 ```{r}
 predictionXNaNzvRf <- predict(modelFitXNaNzvRf, newdata = validationXNaNzv)
@@ -86,4 +90,16 @@ predictionXNaNzvRf <- predict(modelFitXNaNzvRf, newdata = validationXNaNzv)
 confusionMatrixXNaNzvRf <- confusionMatrix(predictionXNaNzvRf, validation$classe)
 confusionMatrixXNaNzvRf
 ```
-The cross-validation showed the random forest model gives an overall accuracy of `r confusionMatrixXNaNzvRf$overall[[1]]`%. 
+The cross-validation showed the random forest model gives an overall accuracy of `r round(100*confusionMatrixXNaNzvRf$overall[[1]],1)`%. Thus, validation set provides a slightly higher prediction of the error rate, but presumably a more fair out-of-sample error rate.
+
+```{r}
+# source("pml_write_files.R")
+# predTest <- predict(modelFitXNaNzvRf, newdata = testing)
+# answerDir <- './answers'
+# if(!file.exists(answerDir)) {
+#         dir.create(answerDir)
+# }
+# setwd(answerDir)
+# pml_write_files(predTest)
+# setwd('../')
+```

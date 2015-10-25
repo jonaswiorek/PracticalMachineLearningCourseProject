@@ -10,7 +10,7 @@
 
 <meta name="author" content="Jonas Wiorek" />
 
-<meta name="date" content="2015-10-18" />
+<meta name="date" content="2015-10-25" />
 
 <title>Practical Machine Learning Course Project</title>
 
@@ -64,13 +64,13 @@ img {
 <div id="header">
 <h1 class="title">Practical Machine Learning Course Project</h1>
 <h4 class="author"><em>Jonas Wiorek</em></h4>
-<h4 class="date"><em>18 Oct 2015</em></h4>
+<h4 class="date"><em>25 Oct 2015</em></h4>
 </div>
 
 
 <p>Data was collected from accelerometers on the belt, forearm, arm, and dumbell of six participants. They were asked to perform one set of ten repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).</p>
 <p>The data is available to download from Groupware website.</p>
-<p>The data was split in a training-validation and a testing set. The training-validation set was further split in a training set and a validation set. 70% of the training-validation set was used for training and 30% for cross-validation.</p>
+<p>The data was split in a training-validation and a testing set. The training-validation set was further split in a training set and a validation set. 70% of the training-validation set was used for training and 30% for cross validation.</p>
 <pre class="r"><code>library(caret)
 library(dplyr)
 library(rpart)
@@ -83,21 +83,21 @@ if(!file.exists(&quot;data&quot;)){
 
 fileUrlTraining &lt;- &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv&quot;
 #download.file(fileUrlTraining, destfile=&quot;./data/pml-training.csv&quot;, method=&quot;curl&quot;) #OSx
-download.file(fileUrlTraining, destfile=&quot;./data/pml-training.csv&quot;) #Windows
+#download.file(fileUrlTraining, destfile=&quot;./data/pml-training.csv&quot;) #Windows
 trainingValidation &lt;- read.csv(&quot;./data/pml-training.csv&quot;)
 set.seed(1717)
 inTrain &lt;- createDataPartition(y = trainingValidation$classe, p = 0.7, list = FALSE)
 training &lt;- trainingValidation[inTrain,]
 validation &lt;- trainingValidation[-inTrain,]
 
-# fileUrlTesting &lt;- &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;
-# #download.file(fileUrlTesting, destfile=&quot;./data/pml-testing.csv&quot;, method=&quot;curl&quot;) #OSx
-# download.file(fileUrlTesting, destfile=&quot;./data/pml-testing.csv&quot;) #Windows
-# testing &lt;- read.csv(&quot;./data/pml-testing.csv&quot;)</code></pre>
+fileUrlTesting &lt;- &quot;https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv&quot;
+#download.file(fileUrlTesting, destfile=&quot;./data/pml-testing.csv&quot;, method=&quot;curl&quot;) #OSx
+#download.file(fileUrlTesting, destfile=&quot;./data/pml-testing.csv&quot;) #Windows
+testing &lt;- read.csv(&quot;./data/pml-testing.csv&quot;)</code></pre>
 <p>Exploration of the data showed that some of the input variables should not be part of the covariates for the model.</p>
-<p>One group of input parameters are used for numbering the actual sample and could negatively affect the model accuracy. Other parameters logs the time when the exercise was performed. Both these groups of vairates were removed.</p>
+<p>One group of input parameters are used for numbering the actual sample and could negatively affect the model accuracy and lead to overfitting. Other parameters logs the time when the exercise was performed. Both these groups of covariates were removed.</p>
 <p>Secondly, a group of input parameters has a large portion of missing data. If the percentage of NA exceeds 90% for a covariate it was excluded.</p>
-<p>Furter, another group of covariates has a varance close to zero. These were also excluded.</p>
+<p>Further, another group of covariates has a varance close to zero. These covariates were also excluded.</p>
 <pre class="r"><code>trainingX &lt;- training %&gt;% select(-c(X, 
                                     raw_timestamp_part_1, 
                                     raw_timestamp_part_2,
@@ -119,8 +119,26 @@ validationXNaNzv &lt;- validationXNa[,-nzv]</code></pre>
 <p>Orinally the data set consisted of 159 covariates. The three methods to remove covariates reduced the number of covariates used for the model to 53.</p>
 <p>Prediciting with trees generated poor accuracy. A more advanced model was therefore required. A random forest model was selected.</p>
 <pre class="r"><code>#modelFitXNaNzvRf &lt;- train(classe ~ ., method = &quot;rf&quot;, data = trainingXNaNzv)
-modelFitXNaNzvRf &lt;- randomForest(classe ~ ., data = trainingXNaNzv, importance = TRUE) </code></pre>
-<p>The validation set was used to cross-validate the model.</p>
+modelFitXNaNzvRf &lt;- randomForest(classe ~ ., data = trainingXNaNzv, importance = TRUE) 
+print(modelFitXNaNzvRf)</code></pre>
+<pre><code>## 
+## Call:
+##  randomForest(formula = classe ~ ., data = trainingXNaNzv, importance = TRUE) 
+##                Type of random forest: classification
+##                      Number of trees: 500
+## No. of variables tried at each split: 7
+## 
+##         OOB estimate of  error rate: 0.5%
+## Confusion matrix:
+##      A    B    C    D    E  class.error
+## A 3904    1    0    0    1 0.0005120328
+## B   10 2643    5    0    0 0.0056433409
+## C    0   13 2379    4    0 0.0070951586
+## D    0    0   25 2224    3 0.0124333925
+## E    0    0    3    4 2518 0.0027722772</code></pre>
+<p>500 trees and 7 variables were randomly sampled as candidates at each split. The default values are used in both cases. The default number of variables is the floor of the square root of the total number of covariates (53 in this case).</p>
+<p>The randomForest function provides a out-of-bag, OOB, error estimation. Not all samples are used to build a certain tree. The samples not used for a tree are used to estimate the error rate. It is the OOB error estimation. It is an estimation of the out-of-sample error rate. The OOB estimate error rate in this case was 0.5%.</p>
+<p>The validation set was used to cross-validate the model in addition to the OOB error rate.</p>
 <pre class="r"><code>predictionXNaNzvRf &lt;- predict(modelFitXNaNzvRf, newdata = validationXNaNzv)</code></pre>
 <pre class="r"><code>confusionMatrixXNaNzvRf &lt;- confusionMatrix(predictionXNaNzvRf, validation$classe)
 confusionMatrixXNaNzvRf</code></pre>
@@ -155,7 +173,16 @@ confusionMatrixXNaNzvRf</code></pre>
 ## Detection Rate         0.2843   0.1925   0.1718   0.1613   0.1830
 ## Detection Prevalence   0.2851   0.1946   0.1745   0.1626   0.1832
 ## Balanced Accuracy      0.9991   0.9961   0.9910   0.9914   0.9976</code></pre>
-<p>The cross-validation showed the random forest model gives an overall accuracy of 0.9928632%.</p>
+<p>The cross-validation showed the random forest model gives an overall accuracy of 99.3%. Thus, validation set provides a slightly higher prediction of the error rate, but presumably a more fair out-of-sample error rate.</p>
+<pre class="r"><code># source(&quot;pml_write_files.R&quot;)
+# predTest &lt;- predict(modelFitXNaNzvRf, newdata = testing)
+# answerDir &lt;- './answers'
+# if(!file.exists(answerDir)) {
+#         dir.create(answerDir)
+# }
+# setwd(answerDir)
+# pml_write_files(predTest)
+# setwd('../')</code></pre>
 
 
 </div>
