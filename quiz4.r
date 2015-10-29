@@ -98,14 +98,16 @@ legend("topleft", x, pch=8, lty=1:length(x), col=1:length(x), cex = 0.6)
 # Cement is the last coefficient to be set to zero as the penalty increases
 
 #4
+library(forecast)
+
 library(lubridate)  # For year() function below
-dat = read.csv("~/../Desktop/gaData.csv")
+#dat = read.csv("~/../Desktop/gaData.csv") #PC
+dat = read.csv("~/Desktop/gaData.csv") #Mac
 training = dat[year(dat$date) < 2012,]
 testing = dat[(year(dat$date)) > 2011,]
 tstrain = ts(training$visitsTumblr)
 tstest <- ts(testing$visitsTumblr)
 
-library(forecast)
 plot(tstrain)
 # Moving Average
 lines(ma(tstrain,order = 3), col = 'red')
@@ -120,9 +122,30 @@ lines(ma(tstrain,order = 10), col = 'green')
 # bats()
 
 modFitDat <- bats(tstrain)
-fcast <- forecast(modFitDat, h = length(tstest))
+fcast <- forecast(modFitDat, h = length(tstest), level = c(95,99))
 plot(fcast)
 lines(dat$visitsTumblr, col = 'red')
+lines(tstrain, col = 'black')
 
-length(which((tstest < fcast$upper[,2]) && (tstest > fcast$lower[,2]))/length(tstest)
+# Confidence level for prediction intervals.
+# Default level=c(80,95)
+length(which((tstest < fcast$upper[,1]) & (tstest > fcast$lower[,1])))/length(tstest)
 # 0.9617021
+
+# Q5
+set.seed(3523)
+library(AppliedPredictiveModeling)
+data(concrete)
+inTrain = createDataPartition(concrete$CompressiveStrength, p = 3/4)[[1]]
+training = concrete[ inTrain,]
+testing = concrete[-inTrain,]
+
+library(e1071)
+set.seed(325)
+
+modFitSvm <- svm(CompressiveStrength ~ ., data= training)
+predSvm <- predict(modFitSvm, newdata = testing)
+
+rmse <- sqrt(1/length(predSvm)*sum((predSvm-testing$CompressiveStrength)^2))
+rmse
+# 6.715009
