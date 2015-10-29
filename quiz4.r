@@ -78,4 +78,51 @@ testing = concrete[-inTrain,]
 
 set.seed(233)
 modFitConcreteLasso <- train(CompressiveStrength ~ ., method = 'lasso', data = training) 
+plot(modFitConcreteLasso$finalModel)
 
+object <- enet(as.matrix(training %>% select(-CompressiveStrength)), training$CompressiveStrength, lambda = 0)
+plot(object)
+
+
+modFitConcreteEnet <- train(CompressiveStrength ~ ., method = 'enet', data = training) 
+plot(modFitConcreteEnet$finalModel)
+
+
+modFitConcreteLars <- train(CompressiveStrength ~ ., method = 'lars', data = training) 
+plot(modFitConcreteLars$finalModel)
+plot(modFitConcreteLars$finalModel, xvar = 'step')
+x <- names(training %>% select(-CompressiveStrength))
+legend("topleft", x, pch=8, lty=1:length(x), col=1:length(x), cex = 0.6)
+
+# Prints plot that shows the progression of the coefficients as they are set to zero one by one
+# Cement is the last coefficient to be set to zero as the penalty increases
+
+#4
+library(lubridate)  # For year() function below
+dat = read.csv("~/../Desktop/gaData.csv")
+training = dat[year(dat$date) < 2012,]
+testing = dat[(year(dat$date)) > 2011,]
+tstrain = ts(training$visitsTumblr)
+tstest <- ts(testing$visitsTumblr)
+
+library(forecast)
+plot(tstrain)
+# Moving Average
+lines(ma(tstrain,order = 3), col = 'red')
+lines(ma(tstrain,order = 5), col = 'blue')
+lines(ma(tstrain,order = 10), col = 'green')
+
+# Library forecast
+# Exponential smoothing state space model
+# ets()
+# BATS model (Exponential smoothing state space model with 
+# Box-Cox transformation, ARMA errors, Trend and Seasonal components)
+# bats()
+
+modFitDat <- bats(tstrain)
+fcast <- forecast(modFitDat, h = length(tstest))
+plot(fcast)
+lines(dat$visitsTumblr, col = 'red')
+
+length(which((tstest < fcast$upper[,2]) && (tstest > fcast$lower[,2]))/length(tstest)
+# 0.9617021
